@@ -219,6 +219,49 @@ systemctl --user stop takota-people-flow.service
 
 自動起動を使う場合は、現場投入前に一度 `./scripts/start_preview.sh` で手動起動できることを確認してください。
 
+### iPhoneテザリングが切れた場合に自動復旧する
+
+iPhoneに電話が入るなどしてテザリングが一度切れる場合は、ラズパイ側で NetworkManager の再接続を監視できます。初回だけ以下を実行します。
+
+```bash
+./scripts/install_tethering_recovery_service.sh
+systemctl --user start takota-tethering-recovery.service
+```
+
+復旧監視は、ラズパイのIPv4アドレスが一定時間消えたら NetworkManager を有効化し直し、保存済みの自動接続プロファイルへ再接続します。Wi-FiテザリングではWi-Fiの再スキャンも行います。iPhone側の「インターネット共有」が再び利用可能になっている必要があります。
+
+接続プロファイル名を固定したい場合は `.env` に以下を追加します。名前は `nmcli connection show` で確認できます。
+
+```env
+TETHER_CONNECTION_NAME="iPhone"
+```
+
+確認間隔を変える場合:
+
+```env
+TETHER_RECOVERY_CHECK_INTERVAL_SEC=10
+TETHER_RECOVERY_MISSING_CONFIRM_SEC=20
+TETHER_RECOVERY_WAIT_SEC=60
+```
+
+通常、プレビューサーバーは `0.0.0.0` で待ち受け続けるため、テザリング復旧後にアプリを再起動する必要はありません。IP変更後にアプリも再起動したい場合だけ、以下を `.env` に追加します。
+
+```env
+TETHER_RECOVERY_RESTART_PREVIEW_SERVICE=true
+```
+
+状態確認:
+
+```bash
+systemctl --user status takota-tethering-recovery.service
+```
+
+ログ確認:
+
+```bash
+journalctl --user -u takota-tethering-recovery.service -f
+```
+
 ## 実行予定コマンド
 
 実装後は以下のように起動できる形にします。
