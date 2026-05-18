@@ -13,6 +13,7 @@ from threading import Lock
 class BadgeStatus:
     total_badges: float
     today_badges: float
+    week_badges: float
     today: str
     today_started_at: str | None
     today_ended_at: str | None
@@ -64,6 +65,7 @@ class BadgeCounter:
             return BadgeStatus(
                 total_badges=self._total_badges,
                 today_badges=self._badges_on_day(today),
+                week_badges=self._badges_in_week(_week_start(today)),
                 today=today.isoformat(),
                 today_started_at=today_started_at.isoformat(timespec="minutes") if today_started_at else None,
                 today_ended_at=today_end.timestamp.isoformat(timespec="minutes") if today_end else None,
@@ -91,6 +93,7 @@ class BadgeCounter:
                 return BadgeStatus(
                     total_badges=0.0,
                     today_badges=self._badges_on_day(today),
+                    week_badges=self._badges_in_week(_week_start(today)),
                     today=today.isoformat(),
                     today_started_at=today_started_at.isoformat(timespec="minutes") if today_started_at else None,
                     today_ended_at=today_end.timestamp.isoformat(timespec="minutes") if today_end else None,
@@ -127,6 +130,7 @@ class BadgeCounter:
             return BadgeStatus(
                 total_badges=self._total_badges,
                 today_badges=self._badges_on_day(today),
+                week_badges=self._badges_in_week(_week_start(today)),
                 today=today.isoformat(),
                 today_started_at=today_started_at.isoformat(timespec="minutes") if today_started_at else None,
                 today_ended_at=today_end.timestamp.isoformat(timespec="minutes") if today_end else None,
@@ -142,6 +146,9 @@ class BadgeCounter:
             if row.timestamp.date() == day:
                 total += row.badges_delta
         return max(total, 0)
+
+    def _badges_in_week(self, week_start: date) -> float:
+        return _badges_in_week(_read_badge_rows(self.path), week_start)
 
 
 @dataclass(frozen=True)
@@ -193,10 +200,10 @@ def summarize_badges(path: Path) -> tuple[list[DailyBadgeSummary], list[WeeklyBa
 
     weekly: dict[date, list[datetime]] = {}
     for day, timestamps in daily.items():
-        week_start = day - timedelta(days=day.weekday())
+        week_start = _week_start(day)
         weekly.setdefault(week_start, []).extend(timestamps)
     for day in badge_days:
-        week_start = day - timedelta(days=day.weekday())
+        week_start = _week_start(day)
         weekly.setdefault(week_start, [])
 
     weekly_summaries = [
@@ -317,6 +324,10 @@ def _badges_in_week(rows: list[_BadgeRow], week_start: date) -> float:
     week_end = week_start + timedelta(days=6)
     total = sum(row.badges_delta for row in rows if week_start <= row.timestamp.date() <= week_end)
     return max(total, 0.0)
+
+
+def _week_start(day: date) -> date:
+    return day - timedelta(days=day.weekday())
 
 
 def _hours_per_badge(rows: list[_BadgeRow], day: date) -> float | None:

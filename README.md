@@ -228,13 +228,24 @@ iPhoneに電話が入るなどしてテザリングが一度切れる場合は�
 systemctl --user start takota-tethering-recovery.service
 ```
 
-復旧監視は、ラズパイのIPv4アドレスが一定時間消えたら NetworkManager を有効化し直し、保存済みの自動接続プロファイルへ再接続します。Wi-FiテザリングではWi-Fiの再スキャンも行います。iPhone側の「インターネット共有」が再び利用可能になっている必要があります。
+復旧監視は、ラズパイのIPv4アドレスが一定時間消えたら段階的に復旧を試します。まず保存済みの自動接続プロファイルへ再接続し、失敗が続く場合は Wi-Fi の off/on、さらに失敗する場合は NetworkManager の再起動へ進みます。iPhone側の「インターネット共有」が再び利用可能になっている必要があります。
 
 接続プロファイル名を固定したい場合は `.env` に以下を追加します。名前は `nmcli connection show` で確認できます。
 
 ```env
 TETHER_CONNECTION_NAME="iPhone"
+TETHER_RECOVERY_REQUIRE_CONNECTION_NAME=true
 ```
+
+現場で別Wi-Fiに接続されてしまう場合は、iPhoneテザリング以外のWi-Fi自動接続を無効化します。
+
+```bash
+nmcli connection show
+./scripts/lock_tether_connection.sh "iPhone"
+systemctl --user restart takota-tethering-recovery.service
+```
+
+この設定後は、`TETHER_CONNECTION_NAME` の接続が有効でない限り「復旧済み」と判定しません。別Wi-Fiへ接続されても復旧監視が続き、対象外Wi-Fiは切断します。
 
 確認間隔を変える場合:
 
@@ -242,12 +253,30 @@ TETHER_CONNECTION_NAME="iPhone"
 TETHER_RECOVERY_CHECK_INTERVAL_SEC=10
 TETHER_RECOVERY_MISSING_CONFIRM_SEC=20
 TETHER_RECOVERY_WAIT_SEC=60
+TETHER_RECOVERY_STAGE_WAIT_SEC=30
 ```
+
+NetworkManager の再起動には sudo が必要です。パスワード入力なしで実行できない場合は、その段階だけ失敗としてログに残り、監視は継続します。
 
 通常、プレビューサーバーは `0.0.0.0` で待ち受け続けるため、テザリング復旧後にアプリを再起動する必要はありません。IP変更後にアプリも再起動したい場合だけ、以下を `.env` に追加します。
 
 ```env
 TETHER_RECOVERY_RESTART_PREVIEW_SERVICE=true
+```
+
+最後の手段としてラズパイを自動再起動したい場合だけ、以下を `.env` に追加します。
+
+```env
+TETHER_RECOVERY_REBOOT_ENABLED=true
+```
+
+この場合も `sudo -n reboot` がパスワードなしで実行できる必要があります。現場投入前に sudoers を設定し、短時間だけテザリングを切ってログを確認してください。
+
+sudoers 設定と `.env` 更新をまとめて行う場合:
+
+```bash
+./scripts/install_tethering_recovery_sudoers.sh
+systemctl --user restart takota-tethering-recovery.service
 ```
 
 状態確認:

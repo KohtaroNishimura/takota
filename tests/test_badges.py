@@ -1,3 +1,5 @@
+import csv
+from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -16,6 +18,49 @@ class BadgeCounterTest(unittest.TestCase):
             self.assertIsNotNone(status.today_ended_at)
             self.assertEqual(status.carryover_progress, 0.0)
             self.assertEqual(status.today_badges, 0.0)
+
+    def test_status_reports_current_week_badges(self) -> None:
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "badge_counts.csv"
+            today = datetime.now().astimezone().date()
+            week_start = today - timedelta(days=today.weekday())
+            previous_week = week_start - timedelta(days=1)
+
+            with path.open("w", newline="", encoding="utf-8") as csv_file:
+                writer = csv.DictWriter(csv_file, fieldnames=BadgeCounter.fieldnames)
+                writer.writeheader()
+                writer.writerow(
+                    {
+                        "timestamp": datetime.combine(previous_week, datetime.min.time()).astimezone().isoformat(),
+                        "event": "consume",
+                        "badges_delta": 3,
+                        "total_badges": 3,
+                        "partial_progress": 0,
+                    }
+                )
+                writer.writerow(
+                    {
+                        "timestamp": datetime.combine(week_start, datetime.min.time()).astimezone().isoformat(),
+                        "event": "consume",
+                        "badges_delta": 2,
+                        "total_badges": 5,
+                        "partial_progress": 0,
+                    }
+                )
+                writer.writerow(
+                    {
+                        "timestamp": datetime.combine(today, datetime.min.time()).astimezone().isoformat(),
+                        "event": "consume",
+                        "badges_delta": 1,
+                        "total_badges": 6,
+                        "partial_progress": 0,
+                    }
+                )
+
+            status = BadgeCounter(path).status()
+
+            self.assertEqual(status.total_badges, 6.0)
+            self.assertEqual(status.week_badges, 3.0)
 
 
 if __name__ == "__main__":

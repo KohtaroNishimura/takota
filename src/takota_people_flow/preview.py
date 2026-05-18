@@ -145,7 +145,7 @@ class PreviewServer:
         <div><strong id="todayBadges" class="text-xl font-bold tabular-nums text-white">0</strong> <span class="text-neutral-300">バッジ</span></div>
       </div>
       <div class="rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2">
-        <div class="text-xs text-neutral-400">累計</div>
+        <div class="text-xs text-neutral-400">今週累計</div>
         <div><strong id="totalBadges" class="text-xl font-bold tabular-nums text-white">0</strong> <span class="text-neutral-300">バッジ</span></div>
       </div>
       <div class="rounded-md border border-neutral-800 bg-neutral-900 px-3 py-2">
@@ -203,7 +203,7 @@ class PreviewServer:
 
     function updateStatus(status) {
       ids.todayBadges.textContent = status.today_badges;
-      ids.totalBadges.textContent = status.total_badges;
+      ids.totalBadges.textContent = status.week_badges;
       ids.startedAt.textContent = status.today_started_at ? status.today_started_at.slice(11, 16) : "未記録";
       ids.endedAt.textContent = status.today_ended_at ? status.today_ended_at.slice(11, 16) : "未記録";
       ids.partialProgress.value = status.carryover_progress ?? 0;
