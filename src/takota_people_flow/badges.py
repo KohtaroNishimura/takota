@@ -69,7 +69,7 @@ class BadgeCounter:
                 today=today.isoformat(),
                 today_started_at=today_started_at.isoformat(timespec="minutes") if today_started_at else None,
                 today_ended_at=today_end.timestamp.isoformat(timespec="minutes") if today_end else None,
-                carryover_progress=_open_partial_progress(self.path),
+                carryover_progress=_open_partial_progress(self.path, today=today),
             )
 
     def start_day(self) -> BadgeStatus:
@@ -80,7 +80,8 @@ class BadgeCounter:
         return self._record(event="end", badges_delta=partial_progress, partial_progress=partial_progress)
 
     def consume(self) -> BadgeStatus:
-        carryover_progress = _open_partial_progress(self.path)
+        today = datetime.now().astimezone().date()
+        carryover_progress = _open_partial_progress(self.path, today=today)
         badges_delta = 1.0 - carryover_progress if carryover_progress > 0 else 1.0
         return self._record(event="consume", badges_delta=badges_delta)
 
@@ -97,7 +98,7 @@ class BadgeCounter:
                     today=today.isoformat(),
                     today_started_at=today_started_at.isoformat(timespec="minutes") if today_started_at else None,
                     today_ended_at=today_end.timestamp.isoformat(timespec="minutes") if today_end else None,
-                    carryover_progress=_open_partial_progress(self.path),
+                    carryover_progress=_open_partial_progress(self.path, today=today),
                 )
             undo_delta = _last_positive_badges_delta(self.path)
             if undo_delta <= 0:
@@ -134,7 +135,7 @@ class BadgeCounter:
                 today=today.isoformat(),
                 today_started_at=today_started_at.isoformat(timespec="minutes") if today_started_at else None,
                 today_ended_at=today_end.timestamp.isoformat(timespec="minutes") if today_end else None,
-                carryover_progress=_open_partial_progress(self.path),
+                carryover_progress=_open_partial_progress(self.path, today=today),
             )
 
     def _load(self) -> None:
@@ -293,9 +294,10 @@ def _latest_end_on_day(path: Path, day: date) -> _BadgeEnd | None:
     return None
 
 
-def _open_partial_progress(path: Path) -> float:
+def _open_partial_progress(path: Path, *, today: date | None = None) -> float:
+    today = today or datetime.now().astimezone().date()
     stack = _positive_badge_stack(path)
-    if stack and stack[-1].event == "end":
+    if stack and stack[-1].event == "end" and _week_start(stack[-1].timestamp.date()) == _week_start(today):
         return stack[-1].partial_progress
     return 0.0
 
